@@ -1,64 +1,169 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>ESP Projeto V2 Dashboard</title>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<style>
-body { font-family: Arial; margin: 20px; }
-.card { border: 1px solid #ccc; padding: 10px; margin: 10px; display: inline-block; width: 150px; }
-</style>
+  <meta charset="UTF-8">
+  <title>Dashboard ESP-Projeto-V2</title>
+
+  <!-- Firebase JS SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <!-- Chart.js para gráficos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Estilo moderno -->
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f0f2f5;
+    }
+    header {
+      background: #4a90e2;
+      color: white;
+      text-align: center;
+      padding: 20px 0;
+    }
+    h1 { margin: 0; }
+
+    #latest {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 10px;
+      width: 160px;
+      text-align: center;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      transition: transform 0.2s;
+    }
+    .card:hover { transform: translateY(-5px); }
+    .card h2 { margin: 10px 0; font-size: 24px; color: #333; }
+
+    #chartContainer {
+      width: 95%;
+      max-width: 1200px;
+      margin: 0 auto 50px;
+    }
+    canvas {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    @media(max-width: 768px){
+      .card { width: 45%; }
+    }
+    @media(max-width: 480px){
+      .card { width: 90%; }
+    }
+  </style>
 </head>
 <body>
-<h1>Dashboard ESP</h1>
 
-<div id="ultimo" class="card">Última leitura: ---</div>
-<canvas id="historico" width="600" height="300"></canvas>
+  <header>
+    <h1>Dashboard ESP-Projeto-V2</h1>
+  </header>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-// Firebase config
-const firebaseConfig = {
-  apiKey: "AIzaSyC_98m8YaKIe3QHXtNH39B8TVGWTE-vI4U",
-  authDomain: "SEU_PROJECT_ID.firebaseapp.com",
-  databaseURL: "https://esp-projeto-5d4b2-default-rtdb.firebaseio.com/",
-  projectId: "SEU_PROJECT_ID",
-  storageBucket: "SEU_PROJECT_ID.appspot.com",
-  messagingSenderId: "SENDER_ID",
-  appId: "APP_ID"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+  <!-- Última leitura -->
+  <div id="latest">
+    <div class="card">Bool<h2 id="bool">-</h2></div>
+    <div class="card">Int<h2 id="int">-</h2></div>
+    <div class="card">Float<h2 id="float">-</h2></div>
+    <div class="card">Double<h2 id="double">-</h2></div>
+    <div class="card">String<h2 id="string">-</h2></div>
+    <div class="card">Timestamp<h2 id="timestamp">-</h2></div>
+  </div>
 
-// Referências
-const ultimoRef = db.ref("/ultimo");
-const historicoRef = db.ref("/historico");
+  <!-- Gráfico histórico -->
+  <div id="chartContainer">
+    <canvas id="historyChart" width="1200" height="500"></canvas>
+  </div>
 
-// Cards
-const ultimoDiv = document.getElementById("ultimo");
+  <!-- Conexão Firebase -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyC_98m8YaKIe3QHXtNH39B8TVGWTE-vI4U",
+      authDomain: "esp-projeto-5d4b2.firebaseapp.com",
+      databaseURL: "https://esp-projeto-5d4b2-default-rtdb.firebaseio.com/",
+      projectId: "esp-projeto-5d4b2",
+      storageBucket: "esp-projeto-5d4b2.appspot.com",
+      messagingSenderId: "SUA_ID",
+      appId: "SUA_APP_ID"
+    };
 
-// Gráfico
-const ctx = document.getElementById("historico").getContext("2d");
-const chart = new Chart(ctx, {
-    type: 'line',
-    data: { labels: [], datasets: [{ label: 'Histórico', data: [], borderColor: 'blue', fill: false }] },
-    options: { responsive: true, scales: { y: { beginAtZero: true } } }
-});
+    // Inicializa Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-// Última leitura
-ultimoRef.on("value", snapshot => {
-    const val = snapshot.val();
-    if(val) ultimoDiv.innerHTML = "Última leitura: " + JSON.stringify(val);
-});
+    const ROOT_NODE = "ESP-Projeto-V2";
+    const latestRef = db.ref(ROOT_NODE + "/ultimo");
+    const historyRef = db.ref(ROOT_NODE + "/historico");
 
-// Histórico
-historicoRef.on("child_added", snapshot => {
-    const val = snapshot.val();
-    chart.data.labels.push(new Date().toLocaleTimeString());
-    chart.data.datasets[0].data.push(val.double); // ou ajuste para o campo que quiser
-    chart.update();
-});
-</script>
+    // Atualiza cards em tempo real
+    latestRef.on('value', snapshot => {
+      const data = snapshot.val();
+      if (!data) return;
+      document.getElementById("bool").innerText = data.bool;
+      document.getElementById("int").innerText = data.int;
+      document.getElementById("float").innerText = data.float.toFixed(2);
+      document.getElementById("double").innerText = data.double.toFixed(5);
+      document.getElementById("string").innerText = data.string;
+      const ts = new Date(data.timestamp);
+      document.getElementById("timestamp").innerText = ts.toLocaleString();
+    });
+
+    // Configura gráfico
+    const ctx = document.getElementById('historyChart').getContext('2d');
+    const historyChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Int', data: [], borderColor: 'blue', fill: false, tension: 0.3 },
+          { label: 'Float', data: [], borderColor: 'green', fill: false, tension: 0.3 },
+          { label: 'Double', data: [], borderColor: 'red', fill: false, tension: 0.3 }
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { tooltip: { enabled: true } },
+        scales: { x: { display: true, title: { display: true, text: 'Hora' } } }
+      }
+    });
+
+    // Atualiza gráfico em tempo real
+    historyRef.on('value', snapshot => {
+      const data = snapshot.val();
+      if (!data) return;
+
+      const labels = [];
+      const ints = [];
+      const floats = [];
+      const doubles = [];
+
+      for (const key in data) {
+        labels.push(new Date(data[key].timestamp).toLocaleTimeString());
+        ints.push(data[key].int);
+        floats.push(data[key].float);
+        doubles.push(data[key].double);
+      }
+
+      historyChart.data.labels = labels;
+      historyChart.data.datasets[0].data = ints;
+      historyChart.data.datasets[1].data = floats;
+      historyChart.data.datasets[2].data = doubles;
+      historyChart.update();
+    });
+  </script>
+
 </body>
 </html>
