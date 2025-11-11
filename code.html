@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESP-Projeto-V3 Dashboard</title>
+
+<!-- PWA: Link para manifest -->
+<link rel="manifest" href="manifest.json">
+
+<!-- Google Fonts para SF Pro Display (Apple-like) -->
+<link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.globe.min.js"></script>
+
+<!-- Firebase JS SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+/* Estilo Apple: Minimalismo, glassmorphism, animações suaves */
+body {
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    color: #1d1d1f;
+    line-height: 1.5;
+}
+.sensor-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.sensor-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    background: rgba(255, 255, 255, 0.8);
+}
+.chart-container {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(15px);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+.btn-apple {
+    background: linear-gradient(135deg, #007aff 0%, #0056cc 100%);
+    border-radius: 12px;
+    color: white;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    box-shadow: 0 2px 10px rgba(0, 122, 255, 0.3);
+}
+.btn-apple:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 20px rgba(0, 122, 255, 0.4);
+}
+.footer-apple {
+    background: linear-gradient(135deg, #f5f5f7 0%, #e5e5e7 100%);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+/* Dark mode Apple-like */
+.dark body {
+    background: linear-gradient(135deg, #1d1d1f 0%, #2d2d2f 100%);
+    color: #f5f5f7;
+}
+.dark .sensor-card, .dark .chart-container {
+    background: rgba(45, 45, 47, 0.7);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+.dark .footer-apple {
+    background: linear-gradient(135deg, #2d2d2f 0%, #1d1d1f 100%);
+}
+/* Overlay de loading para esmaecer a tela */
+#loading-overlay {
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    transition: opacity 0.5s ease-in-out;
+    pointer-events: none;
+    z-index: 50;
+}
+#loading-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+</style>
+</head>
+<body class="bg-gray-50">
+
+<!-- Overlay de loading para esmaecer a tela -->
+<div id="loading-overlay" class="fixed inset-0 opacity-0 transition-opacity duration-500 z-50 flex items-center justify-center">
+    <div class="text-white text-xl font-semibold">Atualizando...</div>
+</div>
+
+<!-- Header Apple-like -->
+<div id="vanta-bg" class="relative h-56 md:h-72 lg:h-80 w-full overflow-hidden rounded-b-2xl">
+    <div class="absolute inset-0 bg-gradient-to-b from-blue-50/80 to-blue-100/60 backdrop-blur-sm"></div>
+    <div class="container mx-auto px-8 relative z-10 h-full flex flex-col justify-center items-center text-center">
+        <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4" data-aos="fade-down">ESP-Projeto-V3 Dashboard</h1>
+        <p class="text-xl text-gray-600 max-w-2xl leading-relaxed mb-6" data-aos="fade-up" data-aos-delay="200">
+            Monitoramento em tempo real dos sensores conectados.
+        </p>
+        <button id="refresh-btn" class="btn-apple px-8 py-4 text-lg" data-aos="fade-in" data-aos-delay="400">
+            <i data-feather="refresh-ccw" class="inline mr-3"></i>Atualizar Dados
+        </button>
+    </div>
+</div>
+
+<!-- Seção de valores -->
+<div class="container mx-auto px-8 py-16">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-8 mb-16">
+        <div class="sensor-card p-8 text-center" data-aos="fade-up">
+            <i data-feather="toggle-right" class="text-blue-500 mb-4 w-8 h-8"></i>
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Bool</h3>
+            <h2 id="bool" class="text-4xl font-bold text-gray-900">-</h2>
+        </div>
+        <div class="sensor-card p-8 text-center" data-aos="fade-up" data-aos-delay="100">
+            <i data-feather="droplet" class="text-blue-500 mb-4 w-8 h-8"></i>
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Umidade %</h3>
+            <h2 id="int" class="text-4xl font-bold text-gray-900">-</h2>
+        </div>
+        <div class="sensor-card p-8 text-center" data-aos="fade-up" data-aos-delay="200">
+            <i data-feather="thermometer" class="text-blue-500 mb-4 w-8 h-8"></i>
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Temperatura °C</h3>
+            <h2 id="float" class="text-4xl font-bold text-gray-900">-</h2>
+        </div>
+        <div class="sensor-card p-8 text-center" data-aos="fade-up" data-aos-delay="300">
+            <i data-feather="activity" class="text-blue-500 mb-4 w-8 h-8"></i>
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Double</h3>
+            <h2 id="double" class="text-4xl font-bold text-gray-900">-</h2>
+        </div>
+        <div class="sensor-card p-8 text-center" data-aos="fade-up" data-aos-delay="400">
+            <i data-feather="cloud-rain" class="text-blue-500 mb-4 w-8 h-8"></i>
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Chuva</h3>
+            <h2 id="string" class="text-3xl font-bold text-gray-900">-</h2>
+        </div>
+        <div class="sensor-card p-8 text-center" data-aos="fade-up" data-aos-delay="500">
+            <i data-feather="clock" class="text-blue-500 mb-4 w-8 h-8"></i>
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Última Atualização</h3>
+            <h2 id="timestamp" class="text-2xl font-bold text-gray-900">-</h2>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-16">
+        <div class="chart-container p-8" data-aos="fade-up">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">Histórico de Umidade</h2>
+            <canvas id="intChart" height="250"></canvas>
+        </div>
+        <div class="chart-container p-8" data-aos="fade-up" data-aos-delay="200">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">Histórico de Temperatura</h2>
+            <canvas id="floatChart" height="250"></canvas>
+        </div>
+        <div class="chart-container p-8" data-aos="fade-up" data-aos-delay="400">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">Histórico Double</h2>
+            <canvas id="doubleChart" height="250"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer class="footer-apple py-12 rounded-t-2xl">
+    <div class="container mx-auto px-8 text-center">
+        <div class="flex justify-center space-x-8 mb-6">
+            <a href="#" class="text-gray-600 hover:text-blue-500 transition duration-300" aria-label="GitHub">
+                <i data-feather="github" class="w-6 h-6"></i>
+            </a>
+            <a href="#" class="text-gray-600 hover:text-blue-500 transition duration-300" aria-label="LinkedIn">
+                <i data-feather="linkedin" class="w-6 h-6"></i>
+            </a>
+            <a href="#" class="text-gray-600 hover:text-blue-500 transition duration-300" aria-label="Twitter">
+                <i data-feather="twitter" class="w-6 h-6"></i>
+            </a>
+        </div>
+        <p class="text-gray-500">© 2025 ESP-Projeto-V3. UniFecaf - ExpoTech 2025.</p>
+    </div>
+</footer>
+
+<script>
+AOS.init({ duration: 600, easing: 'ease-out' });
+feather.replace();
+
+// Vanta
+VANTA.GLOBE({
+    el: "#vanta-bg",
+    mouseControls: true,
+    touchControls: true,
+    gyroControls: false,
+    minHeight: 200.00,
+    minWidth: 200.00,
+    scale: 0.7,
+    scaleMobile: 0.7,
+    color: 0x007aff,
+    backgroundColor: 0x00000000,
+    size: 0.8
+});
+
+// Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyC_98m8YaKIe3QHXtNH39B8TVGWTE-vI4U",
+  authDomain: "esp-projeto-5d4b2.firebaseapp.com",
+  databaseURL: "https://esp-projeto-5d4b2-default-rtdb.firebaseio.com",
+  projectId: "esp-projeto-5d4b2",
+  storageBucket: "esp-projeto-5d4b2.firebasestorage.app",
+  messagingSenderId: "1094472612847",
+  appId: "1:1094472612847:web:ea237814e34e519836141a"
+};
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const ROOT_NODE = "ESP-Projeto-V2";
+const latestRef = db.ref(ROOT_NODE + "/ultimo");
+const historyRef = db.ref(ROOT_NODE + "/historico");
+
+// Atualiza cards
+latestRef.on('value', snapshot => {
+    const data = snapshot.val();
+    if (!data) return;
+    document.getElementById("bool").innerText = data.bool;
+    document.getElementById("int").innerText = data.int;
+    document.getElementById("float").innerText = parseFloat(data.float).toFixed(2);
+    document.getElementById("double").innerText = parseFloat(data.double).toFixed(5);
+    document.getElementById("string").innerText = data.string;
+    const ts = new Date(data.timestamp);
+    document.getElementById("timestamp").innerText = ts.toLocaleString();
+});
+
+// Gráficos
+const intCtx = document.getElementById('intChart').getContext('2d');
+const floatCtx = document.getElementById('floatChart').getContext('2d');
+const doubleCtx = document.getElementById('doubleChart').getContext('2d');
+
+const createGradient = (ctx) => {
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, '#007aff');
+    gradient.addColorStop(1, '#0056cc');
+    return gradient;
+};
+
+const intChart = new Chart(intCtx, { 
+    type:'line', 
+    data:{ labels:[], datasets:[{data:[], borderColor: createGradient(intCtx), fill:false, tension:0.4, pointRadius: 0, borderWidth: 2 }] }, 
+    options:{ responsive:true, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+});
+const floatChart = new Chart(floatCtx, { 
+    type:'line', 
+    data:{ labels:[], datasets:[{data:[], borderColor: createGradient(floatCtx), fill:false, tension:0.4, pointRadius: 0, borderWidth: 2 }] }, 
+    options:{ responsive:true, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+});
+const doubleChart = new Chart(doubleCtx, { 
+    type:'line', 
+    data:{ labels:[], datasets:[{data:[], borderColor: createGradient(doubleCtx), fill:false, tension:0.4, pointRadius: 0, borderWidth: 2 }] }, 
+    options:{ responsive:true, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+});
+
+// Atualiza gráficos
+historyRef.on('value', snapshot => {
+    const data = snapshot.val();
+    if (!data) return;
+    const labels = [], ints=[], floats=[], doubles=[];
+    for(const key in data){
+        labels.push(new Date(data[key].timestamp).toLocaleTimeString());
+        ints.push(data[key].int);
+        floats.push(data[key].float);
+        doubles.push(data[key].double);
+    }
+    intChart.data.labels = labels; intChart.data.datasets[0].data = ints; intChart.update();
+    floatChart.data.labels = labels; floatChart.data.datasets[0].data = floats; floatChart.update();
+    doubleChart.data.labels = labels; doubleChart.data.datasets[0].data = doubles; doubleChart.update();
+});
+
+// Botão de atualizar com animação de esmaecer
+document.getElementById('refresh-btn').addEventListener('click', async () => {
+    const overlay = document.getElementById('loading-overlay');
+    overlay.classList.add('active'); // Ativa o esmaecimento
+
+    // Simula atualização (usando once para forçar refresh)
+    try {
+        const [latestSnapshot, historySnapshot] = await Promise.all([
+            latestRef.once('value'),
+            historyRef.once('value')
+        ]);
+
+        // Atualiza cards
+        const data = latestSnapshot.val();
+        if (data) {
+            document.getElementById("bool").innerText = data.bool;
+            document.getElementById("int").innerText = data.int;
+            document.getElementById("float").innerText = parseFloat(data.float).toFixed(2);
+            document.getElementById("double").innerText = parseFloat(data.double).toFixed(5);
+            document.getElementById("string").innerText = data.string;
+            const ts = new Date(data.timestamp);
+            document.getElementById("timestamp").innerText = ts.toLocaleString();
+        }
+
+        // Atualiza gráficos
+        const histData = historySnapshot.val();
+        if (histData) {
+            const labels = [], ints=[], floats=[], doubles=[];
+            for(const key in histData){
+                labels.push(new Date(histData[key].timestamp).toLocaleTimeString());
+                ints.push(histData[key].int);
+                floats.push(histData[key].float);
+                doubles.push(histData[key].double);
+            }
+            intChart.data.labels = labels; intChart.data.datasets[0].data = ints; intChart.update();
+            floatChart.data.labels = labels; floatChart.data.datasets[0].data = floats; floatChart.update();
+            doubleChart.data.labels = labels; doubleChart.data.datasets[0].data = doubles; doubleChart.update();
+        }
+    } catch (error) {
+        console.error('Erro ao atualizar:', error);
+    } finally {
+        // Remove o esmaecimento após atualização
+        setTimeout(() => {
+            overlay.classList.remove('active');
+        }, 500); // Pequeno delay para suavidade
+    }
+});
+</script>
+
+</body>
+</html>
