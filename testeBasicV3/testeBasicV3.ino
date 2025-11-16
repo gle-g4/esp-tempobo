@@ -20,6 +20,18 @@
 #define USER_PASSWORD "Ps164907@"
 #define ROOT_NODE "ESP-Projeto-V2"
 
+//----SENSOR D BMP280 ----//
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP280.h>
+Adafruit_BMP280 bmp;
+
+//Struct para armazenar os dados do BMP280
+struct DadosBMP {
+  float temperatura;
+  float pressao;
+  float altitude;
+};
+
 // ==== VARIÁVEIS ==== //
 unsigned long lastFirebaseUpdate = 0;
 const unsigned long firebaseInterval = 60000; // 1 minuto
@@ -37,7 +49,7 @@ String mensagem = "";
 #define DHTPIN D3       // Pino conectado ao DHT
 #define DHTTYPE DHT11   // Modelo do sensor: DHT11
 DHT dht(DHTPIN, DHTTYPE); 
-//Estrutura para armazenar os dados de Temperatura e Humidade
+//Estrutura para armazenar os dados de Temperatura e Humidade do DHT11
 struct DadosDHT {
   float temperaturaDHT;
   float umidadeDHT;
@@ -48,7 +60,7 @@ int pin_chuva_digital = D0; // Pino digital ligado ao sensor
 int pin_chuva_analog = A0; // Pino analógico ligado ao sensor
 
 // ==== DISPLAY ==== //
-SSD1306Wire display(0x3c, SDA, SCL);
+SSD1306Wire display(0x3c, D2, D3);
 OLEDDisplayUi ui(&display);
 
 // ==== FIREBASE ==== //
@@ -67,6 +79,43 @@ OverlayCallback overlays[] = { msOverlay };
 int overlaysCount = 1;
 
 // ==== FUNÇÕES ==== //
+
+//Sensor de Pressao e Altitude BMP
+
+DadosBMP lerBMP280() {
+  DadosBMP dados;
+
+  // Inicializa o I2C nos pinos desejados
+  Wire.begin(D6, D5); // SDA = D6, SCL = D5
+
+  // Inicializa sensor
+  if (!bmp.begin(0x76)) {
+    Serial.println("Não achou no 0x76, tentando 0x77");
+    if (!bmp.begin(0x77)) {
+      Serial.println("BMP280 não encontrado!");
+      dados.temperatura = 0;
+      dados.pressao = 0;
+      dados.altitude = 0;
+      return dados;  // retorna valores inválidos
+    }
+  }
+
+  // Faz leitura
+  dados.temperatura = bmp.readTemperature();
+  dados.pressao = bmp.readPressure();
+  dados.altitude = bmp.readAltitude(1013.25);
+  Serial.println("📡 Leitura do BMP:");
+  Serial.print("Pressao: ");
+  Serial.println(dados.pressao);
+  Serial.print("Temperatura: ");
+  Serial.println(dados.temperatura);
+  Serial.print("Altitude: ");
+  Serial.println(dados.altitude);  
+  Serial.println("--------------------------");
+
+  return dados;
+}
+
 
 //Sensor de Humidade e Temperatura
 DadosDHT lerDHT() {
@@ -223,50 +272,44 @@ int frameCount = 5;
 
 // --- Envia dados para Firebase (simulado) ---
 void enviarDadosParaFirebase() {
-  String caminhoUltimo = "/" + String(ROOT_NODE) + "/ultimo";
-  String caminhoHistorico = "/" + String(ROOT_NODE) + "/historico";
-  
+  // Lê os sensores
+  DadosDHT leituraDHT = lerDHT();
+  DadosBMP leituraBMP = lerBMP280();
 
-  estado = random(0, 2) == 0; // true ou false
+  // Evita valores inválidos
+  if (isnan(leituraBMP.pressao)) leituraBMP.pressao = 0;
+  if (isnan(leituraBMP.altitude)) leituraBMP.altitude = 0;
 
-  DadosDHT leitura = lerDHT();
-  temperatura = leitura.temperaturaDHT; // Ex.: 100.00 a 200.00
-  pressao = random(5000, 10000) / 100.0;   // Ex.: 50.00 a 100.00
-  umidade = leitura.umidadeDHT;                  // 0 a 999
-  mensagem = lerSensorChuva();
-
+  // Cria o JSON principal
   FirebaseJson json;
-  json.set("bool", estado);
-  json.set("float", temperatura);
-  json.set("double", pressao);
-  json.set("int", umidade);
-  json.set("string", mensagem);
+
+  json.set("DHT/temperatura", leituraDHT.temperaturaDHT);
+  json.set("DHT/umidade", leituraDHT.umidadeDHT);
+  json.set("BMP280/pressao", leituraBMP.pressao);
+  json.set("BMP280/altitude", leituraBMP.altitude);
+  json.set("chuva", lerSensorChuva());
   json.set("timestamp/.sv", "timestamp"); // Timestamp do servidor
 
-
-  if (Firebase.RTDB.setJSON(&fbdo, caminhoUltimo.c_str(), &json)) {
-    Serial.println("Dados enviados para Firebase com sucesso!");
-
-    /*Serial.println("=== DADOS ENVIADOS ===");
-    Serial.printf("Temperatura: %.2f\n", temperatura);
-    Serial.printf("Pressão: %.2f\n", pressao);
-    Serial.printf("Altitude: %.2f\n", altitude);
-    Serial.printf("Estado: %s\n", estado ? "Ativo" : "Inativo");
-    Serial.printf("Mensagem: %s\n", mensagem.c_str());*/
+  // Envia para /ultimo (últimos valores)
+  if (Firebase.RTDB.setJSON(&fbdo, "/" ROOT_NODE "/ultimo", &json)) {
+    Serial.println("Últimos dados enviados com sucesso!");
   } else {
-    Serial.printf("Erro ao enviar dados: %s\n", fbdo.errorReason().c_str());
+    Serial.printf("Erro ao enviar /ultimo: %s\n", fbdo.errorReason().c_str());
   }
 
-  if (Firebase.RTDB.pushJSON(&fbdo, caminhoHistorico.c_str(), &json)) {
-    Serial.println("Historico do Firebase atualizado com sucesso!");
+  // Envia para /historico (novo nó com timestamp)
+  if (Firebase.RTDB.pushJSON(&fbdo, "/" ROOT_NODE "/historico", &json)) {
+    Serial.println("Histórico atualizado com sucesso!");
+  } else {
+    Serial.printf("Erro ao enviar /historico: %s\n", fbdo.errorReason().c_str());
   }
-
 }
+
 
 // ================== SETUP / LOOP ================== //
 void setup() {
   Serial.begin(115200);
-  Wire.begin();
+  Wire.begin(D1, D2);
 
   initDisplay();
   connectWiFi();
