@@ -272,6 +272,9 @@ void enviarDadosParaFirebase() {
   // Evita valores inválidos
   if (isnan(leituraBMP.pressao)) leituraBMP.pressao = 0;
   if (isnan(leituraBMP.altitude)) leituraBMP.altitude = 0;
+  if (isnan(leituraDHT.temperaturaDHT)) leituraDHT.temperaturaDHT = 0;
+  if (isnan(leituraDHT.umidadeDHT)) leituraDHT.umidadeDHT = 0;
+
 
   // Pega timestamp real
   unsigned long long timestamp = getTimestamp();
