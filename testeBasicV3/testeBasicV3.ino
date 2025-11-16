@@ -4,6 +4,7 @@
 #include <Firebase_ESP_Client.h>
 #include <addons/TokenHelper.h>
 #include <addons/RTDBHelper.h>
+#include <time.h>
 
 #if defined(ESP32) || defined(ARDUINO_RASPBERRY_PI_PICO_W)
 #include <WiFi.h>
@@ -24,6 +25,11 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
 Adafruit_BMP280 bmp;
+
+// Configuração NTP
+const char* ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = -3 * 3600;  // GMT-3 (Brasília)
+const int daylightOffset_sec = 0;       // Sem horário de verão
 
 //Struct para armazenar os dados do BMP280
 struct DadosBMP {
@@ -80,8 +86,13 @@ int overlaysCount = 1;
 
 // ==== FUNÇÕES ==== //
 
-//Sensor de Pressao e Altitude BMP
+// Função para pegar timestamp Unix em millisegundos
+  unsigned long long getTimestamp() {
+  time_t now = time(nullptr);
+  return (unsigned long long)now * 1000ULL; // Multiplica por 1000 para millisegundos
+}
 
+//Sensor de Pressao e Altitude BMP
 DadosBMP lerBMP280() {
   DadosBMP dados;
 
@@ -135,29 +146,11 @@ DadosDHT lerDHT() {
 }
 
 // Sensor de Chuva
-String lerSensorChuva() {
-  int val_a = analogRead(pin_chuva_analog);
-  String mensagem = "";
-
-  if (val_a < 300) {
-    mensagem = "Chuva Intensa";
-  } 
-  else if (val_a <= 500 && val_a >= 300) {
-    mensagem = "Chuva Moderada";
-  } 
-  else {
-    mensagem = "Sem Chuva";
-  }
-
-  // Exibe no Serial Monitor (opcional)
+int lerSensorChuva() {
+  int val_chuva = analogRead(pin_chuva_analog);
   Serial.print("Valor do sensor de chuva: ");
-  Serial.println(val_a);
-  Serial.print("Condição: ");
-  Serial.println(mensagem);
-  Serial.println("-----------------------------");
-
-  // Retorna a mensagem
-  return mensagem;
+  Serial.println(val_chuva);
+  return val_chuva;
 }
 
 // Conecta WiFi
@@ -275,20 +268,22 @@ void enviarDadosParaFirebase() {
   // Lê os sensores
   DadosDHT leituraDHT = lerDHT();
   DadosBMP leituraBMP = lerBMP280();
-
+  
   // Evita valores inválidos
   if (isnan(leituraBMP.pressao)) leituraBMP.pressao = 0;
   if (isnan(leituraBMP.altitude)) leituraBMP.altitude = 0;
 
+  // Pega timestamp real
+  unsigned long long timestamp = getTimestamp();
+
   // Cria o JSON principal
   FirebaseJson json;
-
   json.set("DHT/temperatura", leituraDHT.temperaturaDHT);
   json.set("DHT/umidade", leituraDHT.umidadeDHT);
   json.set("BMP280/pressao", leituraBMP.pressao);
   json.set("BMP280/altitude", leituraBMP.altitude);
   json.set("chuva", lerSensorChuva());
-  json.set("timestamp/.sv", "timestamp"); // Timestamp do servidor
+  json.set("timestamp", (double)timestamp);
 
   // Envia para /ultimo (últimos valores)
   if (Firebase.RTDB.setJSON(&fbdo, "/" ROOT_NODE "/ultimo", &json)) {
@@ -327,6 +322,28 @@ void setup() {
 
   //Sensor de Humidade e Temeperatura
   dht.begin();
+
+  // Configura NTP para pegar hora real
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  Serial.println("Sincronizando com NTP...");
+  
+  // Aguarda sincronização (importante!)
+  time_t now = time(nullptr);
+  int tentativas = 0;
+  while (now < 100000 && tentativas < 20) {
+    Serial.print(".");
+    delay(500);
+    now = time(nullptr);
+    tentativas++;
+  }
+  
+  if (tentativas < 20) {
+    Serial.println("\nHora sincronizada com sucesso!");
+    Serial.print("Data/Hora atual: ");
+    Serial.println(ctime(&now));
+  } else {
+    Serial.println("\nFalha ao sincronizar hora. Continuando mesmo assim...");
+  }
 
 }
 
