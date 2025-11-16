@@ -1,170 +1,758 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ESP-Projeto-V3 Dashboard</title>
-
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.globe.min.js"></script>
-
-<!-- Firebase JS SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
-<style>
-.sensor-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
-                0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    transition: all 0.3s;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TempoBô - Weather Monitoring</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.globe.min.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <style>
+        .robot-icon {
+            transition: all 0.3s ease;
+        }
+        .robot-icon:hover {
+            transform: rotate(10deg) scale(1.1);
+        }
+        .sensor-card {
+            transition: all 0.3s ease;
+        }
+        .sensor-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .loading-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: .5;
+            }
+        }
+    </style>
 </head>
+
 <body class="bg-gray-50">
-
-<!-- Header -->
-<div id="vanta-bg" class="relative h-64 md:h-80 lg:h-96 w-full overflow-hidden">
-    <div class="absolute inset-0 bg-gradient-to-b from-blue-900/50 to-blue-600/30"></div>
-    <div class="container mx-auto px-6 relative z-10 h-full flex flex-col justify-center items-center">
-        <h1 class="text-4xl md:text-5xl font-bold text-white" data-aos="fade-down">ESP-Projeto-V3 Dashboard</h1>
-        <p class="text-xl text-white opacity-90 text-center max-w-2xl mt-2" data-aos="fade-up" data-aos-delay="200">
-            Monitoramento em tempo real dos sensores conectados.
-        </p>
+    <!-- Header with animated background -->
+    <div id="vanta-bg" class="relative h-64 md:h-80 lg:h-96 w-full overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-b from-blue-900/50 to-blue-600/30"></div>
+        <div class="container mx-auto px-6 relative z-10 h-full flex flex-col justify-center items-center">
+            <div class="flex items-center mb-6" data-aos="fade-down">
+                <div class="robot-icon bg-white p-3 rounded-full shadow-lg mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                        <circle cx="12" cy="5" r="2"></circle>
+                        <circle cx="9" cy="14" r="1"></circle>
+                        <circle cx="15" cy="14" r="1"></circle>
+                        <path d="M8 18h8"></path>
+                    </svg>
+                </div>
+                <h1 class="text-4xl md:text-5xl font-bold text-white">TempoBô</h1>
+            </div>
+            <p class="text-xl text-white opacity-90 text-center max-w-2xl" data-aos="fade-up" data-aos-delay="200">
+                Smart environmental monitoring with robotic precision
+            </p>
+        </div>
     </div>
-</div>
 
-<!-- Últimos valores -->
-<div class="container mx-auto px-6 py-12">
-<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-12">
-    <div class="sensor-card bg-white rounded-xl shadow-md p-6 transition-all duration-300" data-aos="fade-up">
-        <h3 class="text-lg font-semibold text-gray-700">Bool</h3>
-        <h2 id="bool" class="text-3xl font-bold text-gray-800">-</h2>
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 py-12">
+        <!-- Current Status Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            <!-- Temperature Card -->
+            <div class="sensor-card bg-white rounded-xl shadow-md p-6 transition-all duration-300" data-aos="fade-up">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-700">Temperatura</h3>
+                    <div class="p-2 bg-red-100 rounded-full">
+                        <i data-feather="thermometer" class="text-red-500"></i>
+                    </div>
+                </div>
+                <div class="flex items-end">
+                    <span id="temperature" class="text-3xl font-bold text-gray-800 loading-pulse">--</span>
+                    <span class="text-lg text-gray-500 ml-1">°C</span>
+                </div>
+                <div class="mt-2">
+                    <span class="text-sm text-gray-500">Atualizado: <span id="temp-update">Carregando...</span></span>
+                </div>
+                <div class="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div id="temp-bar" class="h-full bg-gradient-to-r from-yellow-300 to-red-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Humidity Card -->
+            <div class="sensor-card bg-white rounded-xl shadow-md p-6 transition-all duration-300" data-aos="fade-up" data-aos-delay="100">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-700">Umidade do Ar</h3>
+                    <div class="p-2 bg-blue-100 rounded-full">
+                        <i data-feather="droplet" class="text-blue-500"></i>
+                    </div>
+                </div>
+                <div class="flex items-end">
+                    <span id="humidity" class="text-3xl font-bold text-gray-800 loading-pulse">--</span>
+                    <span class="text-lg text-gray-500 ml-1">%</span>
+                </div>
+                <div class="mt-2">
+                    <span class="text-sm text-gray-500">Atualizado: <span id="humid-update">Carregando...</span></span>
+                </div>
+                <div class="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div id="humid-bar" class="h-full bg-gradient-to-r from-blue-300 to-blue-600 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Altitude Card -->
+            <div class="sensor-card bg-white rounded-xl shadow-md p-6 transition-all duration-300" data-aos="fade-up" data-aos-delay="200">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-700">Altitude</h3>
+                    <div class="p-2 bg-purple-100 rounded-full">
+                        <i data-feather="trending-up" class="text-purple-500"></i>
+                    </div>
+                </div>
+                <div class="flex items-end">
+                    <span id="altitude" class="text-3xl font-bold text-gray-800 loading-pulse">--</span>
+                    <span class="text-lg text-gray-500 ml-1">m</span>
+                </div>
+                <div class="mt-2">
+                    <span class="text-sm text-gray-500">Atualizado: <span id="alt-update">Carregando...</span></span>
+                </div>
+                <div class="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div id="alt-bar" class="h-full bg-gradient-to-r from-purple-300 to-purple-600 rounded-full transition-all duration-500" style="width: 50%"></div>
+                </div>
+            </div>
+
+            <!-- Pressure Card -->
+            <div class="sensor-card bg-white rounded-xl shadow-md p-6 transition-all duration-300" data-aos="fade-up" data-aos-delay="300">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-700">Pressão Atmosférica</h3>
+                    <div class="p-2 bg-indigo-100 rounded-full">
+                        <i data-feather="activity" class="text-indigo-500"></i>
+                    </div>
+                </div>
+                <div class="flex items-end">
+                    <span id="pressure" class="text-3xl font-bold text-gray-800 loading-pulse">--</span>
+                    <span class="text-lg text-gray-500 ml-1">hPa</span>
+                </div>
+                <div class="mt-2">
+                    <span class="text-sm text-gray-500">Atualizado: <span id="press-update">Carregando...</span></span>
+                </div>
+                <div class="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div id="press-bar" class="h-full bg-gradient-to-r from-indigo-300 to-indigo-600 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Rain Card -->
+            <div class="sensor-card bg-white rounded-xl shadow-md p-6 transition-all duration-300" data-aos="fade-up" data-aos-delay="400">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-700">Sensor de Chuva</h3>
+                    <div class="p-2 bg-cyan-100 rounded-full">
+                        <i data-feather="cloud-rain" class="text-cyan-500"></i>
+                    </div>
+                </div>
+                <div class="flex items-end mb-1">
+                    <span id="rain" class="text-3xl font-bold text-gray-800 loading-pulse">--</span>
+                    <span class="text-lg text-gray-500 ml-1">ADC</span>
+                </div>
+                <div id="rain-status-container"></div>
+                <div class="mt-2">
+                    <span class="text-sm text-gray-500">Atualizado: <span id="rain-update">Carregando...</span></span>
+                </div>
+                <div class="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div id="rain-bar" class="h-full bg-gradient-to-r from-cyan-300 to-cyan-600 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Last Update Card -->
+            <div class="sensor-card bg-white rounded-xl shadow-md p-6 transition-all duration-300" data-aos="fade-up" data-aos-delay="500">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-700">Última Atualização</h3>
+                    <div class="p-2 bg-green-100 rounded-full">
+                        <i data-feather="clock" class="text-green-500"></i>
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <span id="last-update-time" class="text-2xl font-bold text-gray-800 loading-pulse">--:--:--</span>
+                    <span id="last-update-date" class="text-sm text-gray-500 mt-1">--/--/----</span>
+                </div>
+                <div class="mt-4">
+                    <div id="connection-status" class="flex items-center">
+                        <div class="w-2 h-2 bg-gray-400 rounded-full mr-2 animate-pulse"></div>
+                        <span class="text-sm text-gray-500">Conectando...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Graphs Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+            <!-- Temperature Chart -->
+            <div class="bg-white rounded-xl shadow-md p-6" data-aos="fade-right" style="height: 300px;">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800">Histórico de Temperatura</h2>
+                    <div class="flex space-x-2">
+                        <button class="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded-full">24h</button>
+                        <button class="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-full">7d</button>
+                        <button class="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-full">30d</button>
+                    </div>
+                </div>
+                <canvas id="temperatureChart" height="250" style="max-height: 250px;"></canvas>
+            </div>
+
+            <!-- Humidity Chart -->
+            <div class="bg-white rounded-xl shadow-md p-6" data-aos="fade-left" style="height: 300px;">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800">Histórico de Umidade</h2>
+                    <div class="flex space-x-2">
+                        <button class="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded-full">24h</button>
+                        <button class="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-full">7d</button>
+                        <button class="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-full">30d</button>
+                    </div>
+                </div>
+                <canvas id="humidityChart" height="250" style="max-height: 250px;"></canvas>
+            </div>
+
+            <!-- Pressure Chart -->
+            <div class="bg-white rounded-xl shadow-md p-6" data-aos="fade-right" style="height: 300px;">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800">Histórico de Pressão</h2>
+                    <div class="flex space-x-2">
+                        <button class="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded-full">24h</button>
+                        <button class="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-full">7d</button>
+                        <button class="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-full">30d</button>
+                    </div>
+                </div>
+                <canvas id="pressureChart" height="250" style="max-height: 250px;"></canvas>
+            </div>
+
+            <!-- Rain Chart -->
+            <div class="bg-white rounded-xl shadow-md p-6" data-aos="fade-left" style="height: 300px;">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800">Histórico de Chuva</h2>
+                    <div class="flex space-x-2">
+                        <button class="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded-full">24h</button>
+                        <button class="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-full">7d</button>
+                        <button class="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-full">30d</button>
+                    </div>
+                </div>
+                <canvas id="rainChart" height="250" style="max-height: 250px;"></canvas>
+            </div>
+        </div>
+
+        <!-- Robot Status -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-12" data-aos="zoom-in">
+            <h2 class="text-xl font-semibold text-gray-800 mb-6">Status do Robô</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-full mr-4">
+                        <i data-feather="check-circle" class="text-green-500"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-gray-700">Operacional</h3>
+                        <p class="text-sm text-gray-500">Todos os sistemas normais</p>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-full mr-4">
+                        <i data-feather="database" class="text-blue-500"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-gray-700">Coleta de Dados</h3>
+                        <p id="data-collection-status" class="text-sm text-gray-500">Aguardando...</p>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="p-3 bg-purple-100 rounded-full mr-4">
+                        <i data-feather="wifi" class="text-purple-500"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-gray-700">Conexão Firebase</h3>
+                        <p id="firebase-status" class="text-sm text-gray-500">Conectando...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="sensor-card bg-white rounded-xl shadow-md p-6 transition-all duration-300" data-aos="fade-up" data-aos-delay="50">
-        <h3 class="text-lg font-semibold text-gray-700">Umidade %</h3>
-        <h2 id="int" class="text-3xl font-bold text-gray-800">-</h2>
-    </div>
-    <div class="sensor-card bg-white rounded-xl shadow-md p-6 transition-all duration-300" data-aos="fade-up" data-aos-delay="100">
-        <h3 class="text-lg font-semibold text-gray-700">Temperatura *C</h3>
-        <h2 id="float" class="text-3xl font-bold text-gray-800">-</h2>
-    </div>
-    <div class="sensor-card bg-white rounded-xl shadow-md p-6 transition-all duration-300" data-aos="fade-up" data-aos-delay="150">
-        <h3 class="text-lg font-semibold text-gray-700">Double</h3>
-        <h2 id="double" class="text-3xl font-bold text-gray-800">-</h2>
-    </div>
-    <div class="sensor-card bg-white rounded-xl shadow-md p-6 transition-all duration-300" data-aos="fade-up" data-aos-delay="200">
-        <h3 class="text-lg font-semibold text-gray-700">Condição de Chuva no Momento</h3>
-        <h2 id="string" class="text-3xl font-bold text-gray-800">-</h2>
-    </div>
-    <div class="sensor-card bg-white rounded-xl shadow-md p-6 transition-all duration-300" data-aos="fade-up" data-aos-delay="250">
-        <h3 class="text-lg font-semibold text-gray-700">Ultima Atualização</h3>
-        <h2 id="timestamp" class="text-3xl font-bold text-gray-800">-</h2>
-    </div>
-</div>
 
-<!-- Mini-gráficos Int, Float, Double -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-    <div class="bg-white rounded-xl shadow-md p-6" data-aos="fade-up">
-        <h2 class="text-xl font-semibold text-gray-800 mb-4">Histórico de Umidade</h2>
-        <canvas id="intChart" height="200"></canvas>
-    </div>
-    <div class="bg-white rounded-xl shadow-md p-6" data-aos="fade-up">
-        <h2 class="text-xl font-semibold text-gray-800 mb-4">Histórico de Temperatura</h2>
-        <canvas id="floatChart" height="200"></canvas>
-    </div>
-    <div class="bg-white rounded-xl shadow-md p-6" data-aos="fade-up">
-        <h2 class="text-xl font-semibold text-gray-800 mb-4">Double History</h2>
-        <canvas id="doubleChart" height="200"></canvas>
-    </div>
-</div>
-</div>
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="flex items-center mb-4 md:mb-0">
+                    <div class="bg-white p-2 rounded-full mr-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                            <circle cx="12" cy="5" r="2"></circle>
+                            <circle cx="9" cy="14" r="1"></circle>
+                            <circle cx="15" cy="14" r="1"></circle>
+                            <path d="M8 18h8"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-xl font-bold">TempoBô</h2>
+                </div>
+                <div class="flex space-x-6">
+                    <a href="index.html" class="hover:text-blue-300">Dashboard</a>
+                    <a href="#" class="hover:text-blue-300">Sobre</a>
+                    <a href="#" class="hover:text-blue-300">Contato</a>
+                    <a href="databank.html" class="hover:text-blue-300">Banco de Dados</a>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-6 pt-6 text-center text-gray-400">
+                <p>© 2025 TempoBô. Todos (talvez nem todos) os direitos reservados</p>
+            </div>
+        </div>
+    </footer>
 
-<!-- Footer -->
-<footer class="bg-gray-800 text-white py-8">
-<div class="container mx-auto px-6 text-center">
-    <p>© 2025 ESP-Projeto-V3. UniFecaf - ExpoTech 2025.</p>
-</div>
-</footer>
+    <script>
+        // ============================================
+        // CONFIGURAÇÃO DO FIREBASE
+        // ============================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyC_98m8YaKIe3QHXtNH39B8TVGWTE-vI4U",
+            authDomain: "esp-projeto-5d4b2.firebaseapp.com",
+            databaseURL: "https://esp-projeto-5d4b2-default-rtdb.firebaseio.com",
+            projectId: "esp-projeto-5d4b2",
+            storageBucket: "esp-projeto-5d4b2.firebasestorage.app",
+            messagingSenderId: "1094472612847",
+            appId: "1:1094472612847:web:ea237814e34e519836141a"
+        };
 
-<script>
-AOS.init();
-feather.replace();
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
 
-VANTA.GLOBE({
-    el: "#vanta-bg",
-    mouseControls: true,
-    touchControls: true,
-    gyroControls: false,
-    minHeight: 200.00,
-    minWidth: 200.00,
-    scale: 1.00,
-    scaleMobile: 1.00,
-    color: 0x3a86ff,
-    backgroundColor: 0x111827,
-    size: 1.00
-});
+        // ============================================
+        // CONFIGURAÇÃO DO CAMINHO DOS DADOS
+        // ============================================
+        const sensorsRef = database.ref('ESP-Projeto-V2/ultimo');
+        const historicoRef = database.ref('ESP-Projeto-V2/historico');
 
-// Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyC_98m8YaKIe3QHXtNH39B8TVGWTE-vI4U",
-  authDomain: "esp-projeto-5d4b2.firebaseapp.com",
-  databaseURL: "https://esp-projeto-5d4b2-default-rtdb.firebaseio.com",
-  projectId: "esp-projeto-5d4b2",
-  storageBucket: "esp-projeto-5d4b2.firebasestorage.app",
-  messagingSenderId: "1094472612847",
-  appId: "1:1094472612847:web:ea237814e34e519836141a"
-};
-const app = firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+        // Variáveis globais para os gráficos
+        let temperatureChart, humidityChart, pressureChart, rainChart;
 
-const ROOT_NODE = "ESP-Projeto-V2";
-const latestRef = db.ref(ROOT_NODE + "/ultimo");
-const historyRef = db.ref(ROOT_NODE + "/historico");
+        // ============================================
+        // FUNÇÃO PARA ATUALIZAR GRÁFICOS
+        // ============================================
+        function updateCharts(historicoData) {
+            if (!historicoData) return;
 
-// Atualiza cards
-latestRef.on('value', snapshot => {
-    const data = snapshot.val();
-    if (!data) return;
-    document.getElementById("bool").innerText = data.bool;
-    document.getElementById("int").innerText = data.int;
-    document.getElementById("float").innerText = parseFloat(data.float).toFixed(2);
-    document.getElementById("double").innerText = parseFloat(data.double).toFixed(5);
-    document.getElementById("string").innerText = data.string;
-    const ts = new Date(data.timestamp);
-    document.getElementById("timestamp").innerText = ts.toLocaleString();
-    document.getElementById("lastUpdate").innerText = ts.toLocaleTimeString();
-});
+            // Converter objeto em array e ordenar por timestamp
+            const entries = Object.entries(historicoData)
+                .map(([key, value]) => ({
+                    key: key,
+                    ...value
+                }))
+                .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
+                .slice(-10); // Pegar últimas 10 leituras
 
-// Inicializa gráficos
-const intCtx = document.getElementById('intChart').getContext('2d');
-const floatCtx = document.getElementById('floatChart').getContext('2d');
-const doubleCtx = document.getElementById('doubleChart').getContext('2d');
+            // Preparar dados para os gráficos
+            const labels = [];
+            const tempData = [];
+            const humidData = [];
+            const pressData = [];
+            const rainData = [];
 
-const intChart = new Chart(intCtx, { type:'line', data:{ labels:[], datasets:[{label:'Int', data:[], borderColor:'blue', fill:false, tension:0.3 }] }, options:{ responsive:true }});
-const floatChart = new Chart(floatCtx, { type:'line', data:{ labels:[], datasets:[{label:'Float', data:[], borderColor:'green', fill:false, tension:0.3 }] }, options:{ responsive:true }});
-const doubleChart = new Chart(doubleCtx, { type:'line', data:{ labels:[], datasets:[{label:'Double', data:[], borderColor:'red', fill:false, tension:0.3 }] }, options:{ responsive:true }});
+            entries.forEach((entry) => {
+                // Extrair hora do timestamp
+                let timeLabel = '';
+                if (entry.timestamp) {
+                    const date = new Date(entry.timestamp);
+                    timeLabel = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                } else {
+                    timeLabel = '--:--';
+                }
+                labels.push(timeLabel);
 
-// Atualiza gráficos
-historyRef.on('value', snapshot => {
-    const data = snapshot.val();
-    if (!data) return;
-    const labels = [], ints=[], floats=[], doubles=[];
-    for(const key in data){
-        labels.push(new Date(data[key].timestamp).toLocaleTimeString());
-        ints.push(data[key].int);
-        floats.push(data[key].float);
-        doubles.push(data[key].double);
-    }
-    intChart.data.labels = labels; intChart.data.datasets[0].data = ints; intChart.update();
-    floatChart.data.labels = labels; floatChart.data.datasets[0].data = floats; floatChart.update();
-    doubleChart.data.labels = labels; doubleChart.data.datasets[0].data = doubles; doubleChart.update();
-});
-</script>
+                // Coletar dados dos sensores
+                tempData.push(entry.DHT?.temperatura || 0);
+                humidData.push(entry.DHT?.umidade || 0);
+                pressData.push(entry.BMP280?.pressao ? (entry.BMP280.pressao / 100).toFixed(2) : 0);
+                
+                // Tratar chuva - agora esperando valor numérico do sensor
+                let rainValue = 0;
+                if (entry.chuva !== undefined) {
+                    if (typeof entry.chuva === 'number') {
+                        // Valor direto do sensor (0-1024)
+                        rainValue = entry.chuva;
+                    } else if (typeof entry.chuva === 'string') {
+                        // Formato antigo (string)
+                        if (entry.chuva !== "Sem Chuva" && entry.chuva !== "Sem chuva") {
+                            rainValue = parseFloat(entry.chuva) || 0;
+                        }
+                    }
+                }
+                rainData.push(rainValue);
+            });
 
+            // Atualizar gráfico de temperatura
+            if (temperatureChart) {
+                temperatureChart.data.labels = labels;
+                temperatureChart.data.datasets[0].data = tempData;
+                temperatureChart.update('none'); // 'none' para update sem animação
+            }
+
+            // Atualizar gráfico de umidade
+            if (humidityChart) {
+                humidityChart.data.labels = labels;
+                humidityChart.data.datasets[0].data = humidData;
+                humidityChart.update('none');
+            }
+
+            // Atualizar gráfico de pressão
+            if (pressureChart) {
+                pressureChart.data.labels = labels;
+                pressureChart.data.datasets[0].data = pressData;
+                pressureChart.update('none');
+            }
+
+            // Atualizar gráfico de chuva
+            if (rainChart) {
+                rainChart.data.labels = labels;
+                rainChart.data.datasets[0].data = rainData;
+                rainChart.update('none');
+            }
+        }
+
+        // ============================================
+        // LISTENER DO HISTÓRICO
+        // ============================================
+        historicoRef.orderByChild('timestamp').limitToLast(10).on('value', (snapshot) => {
+            const historicoData = snapshot.val();
+            if (historicoData) {
+                updateCharts(historicoData);
+            }
+        });
+        AOS.init();
+        feather.replace();
+
+        // Vanta.js background animation
+        VANTA.GLOBE({
+            el: "#vanta-bg",
+            mouseControls: true,
+            touchControls: true,
+            gyroControls: false,
+            minHeight: 200.00,
+            minWidth: 200.00,
+            scale: 1.00,
+            scaleMobile: 1.00,
+            color: 0x3a86ff,
+            backgroundColor: 0x111827,
+            size: 1.00
+        });
+
+        // ============================================
+        // FUNÇÕES AUXILIARES
+        // ============================================
+        function formatTime(timestamp) {
+            if (!timestamp) return 'Aguardando dados...';
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString('pt-BR');
+        }
+
+        function formatDate(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            return date.toLocaleDateString('pt-BR');
+        }
+
+        function getTimeAgo(timestamp) {
+            if (!timestamp) return 'Aguardando...';
+            const now = Date.now();
+            const diff = now - timestamp;
+            const seconds = Math.floor(diff / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            
+            if (seconds < 60) return 'Agora mesmo';
+            if (minutes < 60) return `${minutes} min atrás`;
+            if (hours < 24) return `${hours}h atrás`;
+            return formatDate(timestamp);
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusEl = document.getElementById('connection-status');
+            const firebaseStatusEl = document.getElementById('firebase-status');
+            
+            if (connected) {
+                statusEl.innerHTML = '<div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div><span class="text-sm text-green-600">Conectado</span>';
+                firebaseStatusEl.textContent = 'Conectado';
+                firebaseStatusEl.classList.remove('text-gray-500');
+                firebaseStatusEl.classList.add('text-green-600');
+            } else {
+                statusEl.innerHTML = '<div class="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></div><span class="text-sm text-red-600">Desconectado</span>';
+                firebaseStatusEl.textContent = 'Desconectado';
+                firebaseStatusEl.classList.remove('text-gray-500');
+                firebaseStatusEl.classList.add('text-red-600');
+            }
+        }
+
+        // ============================================
+        // LISTENER DO FIREBASE
+        // ============================================
+        sensorsRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            
+            if (data) {
+                // Atualizar temperatura (DHT)
+                if (data.DHT && data.DHT.temperatura !== undefined) {
+                    document.getElementById('temperature').textContent = data.DHT.temperatura.toFixed(1);
+                    document.getElementById('temperature').classList.remove('loading-pulse');
+                    // Calcular barra (0-40°C = 0-100%)
+                    const tempPercent = Math.min(Math.max((data.DHT.temperatura / 40) * 100, 0), 100);
+                    document.getElementById('temp-bar').style.width = tempPercent + '%';
+                }
+                
+                // Atualizar umidade (DHT)
+                if (data.DHT && data.DHT.umidade !== undefined) {
+                    document.getElementById('humidity').textContent = data.DHT.umidade.toFixed(0);
+                    document.getElementById('humidity').classList.remove('loading-pulse');
+                    document.getElementById('humid-bar').style.width = data.DHT.umidade + '%';
+                }
+                
+                // Atualizar altitude (BMP280)
+                if (data.BMP280 && data.BMP280.altitude !== undefined) {
+                    document.getElementById('altitude').textContent = data.BMP280.altitude.toFixed(2);
+                    document.getElementById('altitude').classList.remove('loading-pulse');
+                    // Normalizar para visualização (assumindo 0-2000m)
+                    const altPercent = Math.min((data.BMP280.altitude / 2000) * 100, 100);
+                    document.getElementById('alt-bar').style.width = altPercent + '%';
+                }
+                
+                // Atualizar pressão (BMP280 - converter de Pa para hPa)
+                if (data.BMP280 && data.BMP280.pressao !== undefined) {
+                    const pressureHpa = (data.BMP280.pressao / 100).toFixed(2);
+                    document.getElementById('pressure').textContent = pressureHpa;
+                    document.getElementById('pressure').classList.remove('loading-pulse');
+                    // Normalizar pressão (950-1050 hPa = 0-100%)
+                    const pressPercent = Math.min(Math.max(((pressureHpa - 950) / 100) * 100, 0), 100);
+                    document.getElementById('press-bar').style.width = pressPercent + '%';
+                }
+                
+                // Atualizar chuva
+                if (data.chuva !== undefined) {
+                    let rainValue = data.chuva;
+                    let rainStatus = "";
+                    let rainBarWidth = 0;
+                    
+                    // Verifica se é um número (novo formato) ou string (formato antigo)
+                    if (typeof rainValue === 'number') {
+                        // Lógica para interpretar o valor do sensor
+                        if (rainValue < 300) {
+                            rainStatus = "Chuva Intensa";
+                            rainBarWidth = 100;
+                        } else if (rainValue >= 300 && rainValue <= 500) {
+                            rainStatus = "Chuva Moderada";
+                            rainBarWidth = 60;
+                        } else {
+                            rainStatus = "Sem Chuva";
+                            rainBarWidth = 10;
+                        }
+                        
+                        // Exibe o valor do sensor
+                        document.getElementById('rain').textContent = rainValue;
+                        document.getElementById('rain').classList.remove('loading-pulse');
+                        
+                        // Adiciona o status no container dedicado
+                        const statusContainer = document.getElementById('rain-status-container');
+                        
+                        // Muda cor do status baseado na intensidade
+                        if (rainValue < 300) {
+                            statusContainer.innerHTML = '<span class="text-sm font-semibold text-red-600">' + rainStatus + '</span>';
+                        } else if (rainValue >= 300 && rainValue <= 500) {
+                            statusContainer.innerHTML = '<span class="text-sm font-semibold text-yellow-600">' + rainStatus + '</span>';
+                        } else {
+                            statusContainer.innerHTML = '<span class="text-sm font-semibold text-green-600">' + rainStatus + '</span>';
+                        }
+                        
+                    } else {
+                        // Formato antigo (string)
+                        rainValue = data.chuva === "Sem Chuva" || data.chuva === "Sem chuva" ? 0 : parseFloat(data.chuva) || 0;
+                        rainStatus = data.chuva;
+                        rainBarWidth = Math.min((rainValue / 1024) * 100, 100);
+                        document.getElementById('rain').textContent = rainValue.toFixed(0);
+                        document.getElementById('rain').classList.remove('loading-pulse');
+                    }
+                    
+                    document.getElementById('rain-bar').style.width = rainBarWidth + '%';
+                }
+                
+                // Atualizar timestamp
+                const timestamp = data.timestamp || Date.now();
+                document.getElementById('last-update-time').textContent = formatTime(timestamp);
+                document.getElementById('last-update-date').textContent = formatDate(timestamp);
+                document.getElementById('last-update-time').classList.remove('loading-pulse');
+                
+                // Atualizar todos os tempos relativos
+                const timeAgo = getTimeAgo(timestamp);
+                document.querySelectorAll('[id$="-update"]').forEach(el => {
+                    el.textContent = timeAgo;
+                });
+                
+                // Atualizar status de coleta
+                document.getElementById('data-collection-status').textContent = 'Ativo - ' + timeAgo;
+                
+                updateConnectionStatus(true);
+            }
+        }, (error) => {
+            console.error('Erro ao ler dados do Firebase:', error);
+            updateConnectionStatus(false);
+        });
+
+        // Monitorar conexão do Firebase
+        const connectedRef = database.ref('.info/connected');
+        connectedRef.on('value', (snap) => {
+            if (snap.val() === true) {
+                updateConnectionStatus(true);
+            } else {
+                updateConnectionStatus(false);
+            }
+        });
+
+        // ============================================
+        // GRÁFICOS
+        // ============================================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Temperature Chart
+            const tempCtx = document.getElementById('temperatureChart').getContext('2d');
+            temperatureChart = new Chart(tempCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Temperatura (°C)',
+                        data: [],
+                        borderColor: '#f87171',
+                        backgroundColor: 'rgba(248, 113, 113, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+
+            // Humidity Chart
+            const humidityCtx = document.getElementById('humidityChart').getContext('2d');
+            humidityChart = new Chart(humidityCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Umidade (%)',
+                        data: [],
+                        borderColor: '#60a5fa',
+                        backgroundColor: 'rgba(96, 165, 250, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: 0,
+                            max: 100
+                        }
+                    }
+                }
+            });
+
+            // Pressure Chart
+            const pressureCtx = document.getElementById('pressureChart').getContext('2d');
+            pressureChart = new Chart(pressureCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Pressão (hPa)',
+                        data: [],
+                        borderColor: '#818cf8',
+                        backgroundColor: 'rgba(129, 140, 248, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+
+            // Rain Chart
+            const rainCtx = document.getElementById('rainChart').getContext('2d');
+            rainChart = new Chart(rainCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Sensor Chuva (ADC)',
+                        data: [],
+                        backgroundColor: 'rgba(34, 211, 238, 0.7)',
+                        borderColor: 'rgba(34, 211, 238, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1024,
+                            reverse: true // Inverte o eixo: valores baixos (chuva) ficam no topo
+                        }
+                    }
+                }
+            });
+        });
+    </script>
 </body>
 </html>
