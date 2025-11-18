@@ -1,6 +1,6 @@
 /*
  * TempoBô - Sistema de Monitoramento Meteorológico
- * Versão 4.0 - COM SEGURANÇA IMPLEMENTADA
+ * Versão 4.1 - COM SEGURANÇA IMPLEMENTADA
  */
 
 #include <Wire.h>
@@ -76,7 +76,7 @@ int pin_chuva_analog = A0;
 // ============================================
 // DISPLAY OLED
 // ============================================
-SSD1306Wire display(0x3c, D2, D3);
+SSD1306Wire display(0x3c, D2, D1);
 OLEDDisplayUi ui(&display);
 
 // ============================================
@@ -381,11 +381,15 @@ void drawFrame2(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int1
 }
 
 void drawFrame3(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+  
+  // Lê todos os sensores
+  DadosBMP leituraBMP = lerBMP280();
+
   display->clear();
   display->setTextAlignment(TEXT_ALIGN_LEFT);
   display->setFont(ArialMT_Plain_16);
   display->drawString(0 + x, 0 + y, "Pressao:");
-  display->drawString(0 + x, 20 + y, String(pressao, 1) + " hPa");
+  display->drawString(0 + x, 20 + y, String(leituraBMP.pressao, 1) + " hPa");
   display->display();
 }
 
