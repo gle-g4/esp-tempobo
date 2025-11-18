@@ -1,0 +1,90 @@
+# ============================================
+# TempoBô - Arquivo .gitignore
+# ============================================
+
+# Arquivos de configuração sensíveis
+firebase-config.js
+app-config.js
+credentials.json
+.env
+.env.local
+
+# Chaves e certificados
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Credenciais do Firebase
+firebase-adminsdk-*.json
+serviceAccountKey.json
+
+# Arquivos temporários
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependências (se usar Node.js no futuro)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build/Dist
+dist/
+build/
+.cache/
+
+# IDEs e Editores
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Arquivos de backup do sistema
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Arquivos de teste
+test/
+*.test.js
+coverage/
+
+# Pasta de secrets (se criar)
+secrets/
+private/
+config/local.js
+
+# Arduino/PlatformIO (para o código do ESP32)
+.pio/
+.vscode/
+lib/
+.clang_complete
+.gcc-flags.json
+
+# Outros
+*.zip
+*.tar.gz
+*.rar
