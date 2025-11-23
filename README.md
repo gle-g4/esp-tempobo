@@ -144,7 +144,7 @@ Este projeto faz parte da EXPOTECH 2025 - UNIFECAF.
 
 ## 👥 Autores
 
-- **João Souza** - [@JoaoSouza-ops](https://www.linkedin.com/in/joao-v-souza)
+- **João Souza** - [@Joao V. Souza](https://www.linkedin.com/in/joao-v-souza)
 
 ## 🎓 Instituição
 
