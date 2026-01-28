@@ -149,7 +149,7 @@ Este projeto faz parte da EXPOTECH 2025 - UNIFECAF.
 
 ## 🎓 Instituição
 
-**UNIFECAF - Centro Universitário Católica de Santa Catarina**  
+**UNIFECAF - Centro Universitário**  
 EXPOTECH 2025
 
 ## 📞 Contato
